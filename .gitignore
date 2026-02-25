@@ -1,16 +1,32 @@
+# =========================
 # Python
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
 
-# Virtual env
+# =========================
+# Virtual Environments
+# =========================
 venv/
 .env
+.venv/
 
-# Mac
+# =========================
+# OS Files
+# =========================
 .DS_Store
 
-# Temp
+# =========================
+# Project temp files
+# =========================
 uploads/
 repos/
+*.log
+
+# =========================
+# IDE files (optional but recommended)
+# =========================
+.vscode/
+.idea/

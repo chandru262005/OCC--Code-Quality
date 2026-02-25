@@ -1,0 +1,13 @@
+# Core dependencies (Member 1)
+fastapi
+uvicorn
+python-multipart
+pydantic
+gitpython
+aiofiles
+
+# Analyzer dependencies (Member 2)
+pylint
+flake8
+radon
+bandit

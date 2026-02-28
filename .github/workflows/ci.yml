@@ -1,0 +1,71 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run linting
+        run: flake8 app/ tests/ --max-line-length=120 --exclude=__pycache__
+
+      - name: Run tests
+        run: pytest tests/ -v --cov=app --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t code-quality-gate .
+
+      - name: Run tests in Docker
+        run: docker run --rm code-quality-gate pytest tests/ -v
+
+  quality-gate:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and start API
+        run: |
+          docker-compose up -d api
+          sleep 10
+
+      - name: Run quality gate on sample files
+        run: |
+          for file in sample_files/*.py; do
+            if [ -f "$file" ]; then
+              echo "Analyzing: $file"
+              curl -s -X POST http://localhost:8000/api/v1/analyze/file \
+                -F "file=@$file" -F "threshold=6.0" | python -m json.tool
+            fi
+          done
+
+      - name: Stop API
+        if: always()
+        run: docker-compose down

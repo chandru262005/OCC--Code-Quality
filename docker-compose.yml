@@ -1,0 +1,40 @@
+version: "3.8"
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - QUALITY_THRESHOLD=6.0
+      - DEBUG=false
+      - LOG_LEVEL=info
+    volumes:
+      - upload_data:/tmp/cqg_uploads
+      - repo_data:/tmp/cqg_repos
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=debug
+    volumes:
+      - .:/app
+      - upload_data:/tmp/cqg_uploads
+      - repo_data:/tmp/cqg_repos
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  upload_data:
+  repo_data:

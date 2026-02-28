@@ -236,18 +236,17 @@ class AIAnalyzer(BaseAnalyzer):
             "files": files_payload,
         }
 
+        # Merge system instruction into user message so it works with models
+        # that don't support a dedicated system role (e.g. Gemma via Google AI Studio).
+        combined_content = (
+            "You are a strict code quality reviewer. Output valid JSON only. No markdown.\n\n"
+            + json.dumps(prompt_payload)
+        )
         payload = {
             "model": selected_model,
             "temperature": 0,
             "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a strict code quality reviewer. "
-                        "Output valid JSON only. No markdown."
-                    ),
-                },
-                {"role": "user", "content": json.dumps(prompt_payload)},
+                {"role": "user", "content": combined_content},
             ],
         }
 

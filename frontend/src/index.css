@@ -1,0 +1,312 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource/instrument-sans/400.css";
+@import "@fontsource/instrument-sans/500.css";
+@import "@fontsource/instrument-sans/600.css";
+@import "@fontsource/instrument-sans/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/600.css";
+
+:root {
+  --background: oklch(0.99 0 0); /* Crisper white */
+  --foreground: oklch(0.12 0 0); /* Darker black */
+  
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.12 0 0);
+  
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.12 0 0);
+  
+  --primary: oklch(0.35 0.15 260); /* Deep royal/cobalt blue */
+  --primary-foreground: oklch(0.98 0 0);
+  
+  --secondary: oklch(0.95 0 0);
+  --secondary-foreground: oklch(0.25 0 0);
+  
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.35 0 0); /* Darker for better contrast */
+  
+  --accent: oklch(0.93 0 0);
+  --accent-foreground: oklch(0.12 0 0);
+  
+  --destructive: oklch(0.55 0.2 25); /* Sharp red */
+  --destructive-foreground: oklch(1 0 0);
+  
+  --border: oklch(0.88 0 0); /* Softer lines so content stands out more */
+  --input: oklch(0.88 0 0);
+  --ring: oklch(0.35 0.15 260);
+  
+  --radius: 0rem; /* Utilitarian, sharp corners */
+  
+  /* Status variables */
+  --success: oklch(0.45 0.15 150); /* Darker green */
+  --success-bg: oklch(0.95 0.05 150);
+  --warning: oklch(0.55 0.16 45); /* Darker amber */
+  --warning-bg: oklch(0.96 0.06 45);
+  --error: oklch(0.5 0.2 25); /* Darker red */
+  --error-bg: oklch(0.95 0.05 25);
+}
+
+.dark {
+  /* Enforcing light mode for this specific professional editorial theme, 
+     but setting dark variables just in case */
+  --background: oklch(0.1 0 0);
+  --foreground: oklch(0.95 0 0);
+  --border: oklch(0.2 0 0);
+}
+
+@theme inline {
+  --font-sans: 'Instrument Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-error: var(--error);
+  --color-error-bg: var(--error-bg);
+
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius);
+  --radius-2xl: var(--radius);
+  --radius-3xl: var(--radius);
+  --radius-4xl: var(--radius);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply font-sans text-foreground antialiased selection:bg-primary selection:text-white;
+    background-color: oklch(0.97 0 0); /* Slightly off-white background to make the main white panel pop */
+    margin: 0;
+    min-height: 100vh;
+  }
+  html {
+    @apply font-sans;
+  }
+  code, pre {
+    @apply font-mono text-[0.9em];
+  }
+}
+
+/* Ambient Elements */
+.ambient-glow {
+  position: absolute;
+  top: -20%;
+  left: -10%;
+  width: 70vw;
+  height: 70vw;
+  background: radial-gradient(circle, var(--primary) 0%, transparent 60%);
+  opacity: 0.04;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Structural/Editorial Utilities */
+.grid-paper {
+  background-image: 
+    linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: -1px -1px;
+}
+
+.structural-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03); /* Subtle lift */
+}
+
+.structural-input {
+  background: var(--background);
+  border: 1px solid var(--border);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); /* Inner depth to look interactive */
+}
+
+.structural-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+  outline: none;
+}
+
+.structural-button {
+  background: var(--foreground);
+  color: var(--background);
+  border: 1px solid var(--foreground);
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: -0.01em;
+}
+
+.structural-button:hover:not(:disabled) {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.structural-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.structural-button.secondary {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.structural-button.secondary:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--border);
+}
+
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.data-row:last-child {
+  border-bottom: none;
+}
+
+.data-label {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.data-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid transparent;
+}
+
+.status-badge.success {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.status-badge.error {
+  background: var(--error-bg);
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.status-badge.warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+/* Typography refinements */
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em;
+}
+
+.editorial-title {
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.score-display {
+  font-size: clamp(4rem, 10vw, 8rem);
+  line-height: 0.9;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  font-family: var(--font-mono);
+}
+
+/* Range Slider Reset & Styling */
+input[type=range] {
+  -webkit-appearance: none;
+  background: var(--border);
+  height: 2px;
+  border-radius: 0;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--primary);
+  cursor: ew-resize;
+  border-radius: 0; /* Square thumb for editorial feel */
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px var(--primary);
+  transition: transform 0.1s ease;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+input[type=range]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary);
+}
+
+/* Minimal Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 0px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}

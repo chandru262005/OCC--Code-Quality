@@ -142,11 +142,43 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: Force new ECS deployment
+      - name: Update ECS task definition with new image
+        id: update-taskdef
+        env:
+          IMAGE: ${{ steps.build-image.outputs.image }}
+        run: |
+          # Fetch the current task definition and swap the image only
+          TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition $ECS_TASK_DEFINITION \
+            --query 'taskDefinition' \
+            --output json)
+
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | python3 -c "
+          import json, sys
+          td = json.load(sys.stdin)
+          new_image = '$IMAGE'
+          td['containerDefinitions'][0]['image'] = new_image
+          # Strip read-only fields before re-registering
+          for field in ('taskDefinitionArn','revision','status','requiresAttributes',
+                        'compatibilities','registeredAt','registeredBy','deregisteredAt'):
+              td.pop(field, None)
+          print(json.dumps(td))
+          ")
+
+          NEW_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "task_def_arn=$NEW_ARN" >> $GITHUB_OUTPUT
+          echo "Registered new task definition: $NEW_ARN"
+
+      - name: Deploy to ECS
         run: |
           aws ecs update-service \
             --cluster $ECS_CLUSTER \
             --service $ECS_SERVICE \
+            --task-definition ${{ steps.update-taskdef.outputs.task_def_arn }} \
             --force-new-deployment
 
       - name: Wait for ECS service to stabilize

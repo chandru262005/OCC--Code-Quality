@@ -24,16 +24,16 @@ docker-build: ## Build Docker image
 	docker build -t code-quality-gate .
 
 docker-run: ## Run with Docker Compose (production)
-	docker-compose up -d api
+	docker compose up -d api
 
 docker-dev: ## Run with Docker Compose (dev mode with hot reload)
-	docker-compose up api-dev
+	docker compose up api-dev
 
 docker-stop: ## Stop Docker containers
-	docker-compose down
+	docker compose down
 
 docker-test: ## Run tests inside Docker
-	docker-compose run --rm api pytest tests/ -v --cov=app --cov-report=term-missing
+	docker compose run --rm api python -m pytest tests/ -v --cov=app --cov-report=term-missing
 
 clean: ## Clean temp files, caches, build artifacts
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

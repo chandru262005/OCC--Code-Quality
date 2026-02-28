@@ -25,24 +25,54 @@ def validate_github_url(url: str) -> bool:
 
 
 def clone_repo(url: str, branch: str = "main") -> Path:
-    """Clone a GitHub repository to a temporary directory."""
+    """Clone a GitHub repository to a temporary directory.
+    
+    Tries to clone the specified branch, with fallbacks to common default branches
+    if the specified branch doesn't exist.
+    """
     if not validate_github_url(url):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid GitHub URL: {url}. Expected format: https://github.com/user/repo",
         )
 
-    try:
-        from git import Repo
+    from git import Repo
 
-        repo_dir = Path(settings.REPO_DIR) / f"repo_{os.urandom(8).hex()}"
-        repo_dir.parent.mkdir(parents=True, exist_ok=True)
-        Repo.clone_from(url, str(repo_dir), branch=branch, depth=1)
-        return repo_dir
-    except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Failed to clone repository: {str(e)}"
-        )
+    repo_dir = Path(settings.REPO_DIR) / f"repo_{os.urandom(8).hex()}"
+    repo_dir.parent.mkdir(parents=True, exist_ok=True)
+    
+    # List of branches to try in order
+    branches_to_try = [branch]
+    if branch != "main":
+        branches_to_try.append("main")
+    if branch != "master":
+        branches_to_try.append("master")
+    if branch != "develop":
+        branches_to_try.append("develop")
+    
+    last_error = None
+    
+    for branch_name in branches_to_try:
+        try:
+            Repo.clone_from(url, str(repo_dir), branch=branch_name, depth=1)
+            if branch_name != branch:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Failed to clone branch '{branch}', successfully cloned '{branch_name}' instead")
+            return repo_dir
+        except Exception as e:
+            last_error = e
+            # Clean up failed clone attempt
+            if repo_dir.exists():
+                shutil.rmtree(repo_dir, ignore_errors=True)
+                repo_dir = Path(settings.REPO_DIR) / f"repo_{os.urandom(8).hex()}"
+                repo_dir.parent.mkdir(parents=True, exist_ok=True)
+    
+    # All branch attempts failed
+    raise HTTPException(
+        status_code=400, 
+        detail=f"Failed to clone repository: Could not find any of the branches {branches_to_try}. Last error: {str(last_error)}"
+    )
 
 
 def list_python_files(

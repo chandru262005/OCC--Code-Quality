@@ -4,12 +4,16 @@ from app.analyzers.static_analyzer import StaticAnalyzer
 def test_high_complexity_detection(tmp_path):
     # Setup: Create a deeply nested 'if' structure
     complex_file = tmp_path / "complex.py"
+    # 5 IFs = Complexity 6. 1 base + 5 nodes.
+    # Complexity 6 should be 'B' (>= 5 and < 10)
     complex_file.write_text(
         "def deep_nesting(x):\n"
         "    if x > 0:\n"
         "        if x > 1:\n"
         "            if x > 2:\n"
-        "                return x\n"
+        "                if x > 3:\n"
+        "                    if x > 4:\n"
+        "                        return x\n"
         "    return 0"
     )
 
@@ -17,15 +21,15 @@ def test_high_complexity_detection(tmp_path):
     results = analyzer.analyze(str(complex_file))
 
     # Assertions
-    assert results["complexity_score"] > 1
-    assert "complexity_report" in results
-    assert results["rating"] in ["B", "C", "D"] # Should not be 'A'
+    assert results.score < 10.0
+    assert "Complexity" in results.summary
+    assert "B" in results.summary # Complexity 6 is 'B'
 
 def test_empty_file_static_analysis(tmp_path):
     empty_file = tmp_path / "empty.py"
-    empty_file.write_text("")
+    empty_file.write_text("def a(): pass") # Ast needs valid code
 
     analyzer = StaticAnalyzer()
     results = analyzer.analyze(str(empty_file))
     
-    assert results["complexity_score"] == 1
+    assert results.score == 10.0

@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion"
-import { CheckCircle2, XCircle, Code2, Loader2, ArrowRight, ShieldAlert, FileCode2, UploadCloud, File, Github } from "lucide-react"
+import { CheckCircle2, XCircle, Code2, Loader2, ArrowRight, ShieldAlert, FileCode2, UploadCloud, File, Github, Circle, Clock } from "lucide-react"
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
 
@@ -38,9 +38,30 @@ function AnimatedNumber({ value }: { value: number }) {
   return <motion.span>{display}</motion.span>
 }
 
+// ── Pipeline step type ─────────────────────────────────────────────────────
+type StepStatus = "pending" | "running" | "completed" | "failed"
+interface PipelineStep {
+  id: string
+  status: StepStatus
+  message: string
+  duration_ms: number
+}
+
+// Step display labels
+const STEP_LABELS: Record<string, string> = {
+  validate: "Validate Input",
+  save: "Save Upload",
+  clone: "Clone Repository",
+  discover: "Discover Files",
+  read: "Read Source",
+  lint: "Lint Analysis",
+  static: "Static Analysis",
+  security: "Security Scan",
+  report: "Build Report",
+}
+
 export default function App() {
   const [analyzing, setAnalyzing] = useState(false)
-  const [loadingPhase, setLoadingPhase] = useState(0)
   const [report, setReport] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [inputType, setInputType] = useState<"file" | "github">("file")
@@ -52,15 +73,8 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
-  // Rotate loading phases
-  useEffect(() => {
-    if (analyzing) {
-      const phases = setInterval(() => {
-        setLoadingPhase(p => (p + 1) % 4)
-      }, 800)
-      return () => clearInterval(phases)
-    }
-  }, [analyzing])
+  // Pipeline steps for live progress
+  const [steps, setSteps] = useState<PipelineStep[]>([])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -91,65 +105,98 @@ export default function App() {
     }
   }
 
-  const handleAnalyzeFile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedFile) return
-
+  // ── SSE stream consumer ────────────────────────────────────────────────
+  const consumeStream = useCallback(async (url: string, init: RequestInit) => {
     setAnalyzing(true)
     setReport(null)
     setError(null)
-    setLoadingPhase(0)
-
-    const formData = new FormData()
-    formData.append("file", selectedFile)
-    formData.append("threshold", threshold)
+    setSteps([])
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/analyze/file`, {
-        method: "POST",
-        body: formData,
-      })
+      const res = await fetch(url, init)
       if (!res.ok) {
         const errData = await res.json().catch(() => null)
         throw new Error(errData?.detail || `Server error: ${res.status}`)
       }
-      const data = await res.json()
-      setReport(transformReport(data))
+
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split("\n\n")
+        buffer = parts.pop() || ""
+
+        for (const part of parts) {
+          const lines = part.split("\n")
+          let eventType = ""
+          let data = ""
+          for (const line of lines) {
+            if (line.startsWith("event: ")) eventType = line.slice(7)
+            if (line.startsWith("data: ")) data = line.slice(6)
+          }
+          if (!eventType || !data) continue
+
+          const parsed = JSON.parse(data)
+
+          if (eventType === "step") {
+            setSteps(prev => {
+              const idx = prev.findIndex(s => s.id === parsed.step)
+              const updated: PipelineStep = {
+                id: parsed.step,
+                status: parsed.status,
+                message: parsed.message,
+                duration_ms: parsed.duration_ms,
+              }
+              if (idx >= 0) {
+                const next = [...prev]
+                next[idx] = updated
+                return next
+              }
+              return [...prev, updated]
+            })
+          } else if (eventType === "result") {
+            setReport(transformReport(parsed))
+          } else if (eventType === "error") {
+            setError(parsed.message)
+          }
+        }
+      }
     } catch (err) {
       console.error(err)
       setError(err instanceof Error ? err.message : "Failed to connect to the analysis server.")
     } finally {
       setAnalyzing(false)
     }
+  }, [])
+
+  const handleAnalyzeFile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedFile) return
+
+    const formData = new FormData()
+    formData.append("file", selectedFile)
+    formData.append("threshold", threshold)
+
+    consumeStream(`${API_BASE_URL}/api/v1/analyze/file/stream`, {
+      method: "POST",
+      body: formData,
+    })
   }
 
   const handleAnalyzeGithub = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!repoUrl) return
 
-    setAnalyzing(true)
-    setReport(null)
-    setError(null)
-    setLoadingPhase(0)
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/analyze/github`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repo_url: repoUrl, threshold: parseFloat(threshold) }),
-      })
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null)
-        throw new Error(errData?.detail || `Server error: ${res.status}`)
-      }
-      const data = await res.json()
-      setReport(transformReport(data))
-    } catch (err) {
-      console.error(err)
-      setError(err instanceof Error ? err.message : "Failed to connect to the analysis server.")
-    } finally {
-      setAnalyzing(false)
-    }
+    consumeStream(`${API_BASE_URL}/api/v1/analyze/github/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo_url: repoUrl, threshold: parseFloat(threshold) }),
+    })
   }
 
   const getScoreColorClass = (score: number) => {
@@ -157,13 +204,6 @@ export default function App() {
     if (score >= 5) return 'text-[var(--warning)]'
     return 'text-[var(--error)]'
   }
-
-  const loadingMessages = [
-    "Compiling AST graph...",
-    "Running complexity checks...",
-    "Scanning for vulnerability patterns...",
-    "Generating final metrics..."
-  ]
 
   return (
     <div className="min-h-screen text-[var(--foreground)] flex flex-col items-center relative overflow-hidden">
@@ -250,7 +290,7 @@ export default function App() {
                       {selectedFile ? (
                         <div className="flex flex-col items-center gap-3 text-[var(--success)]">
                           <File className="w-10 h-10" />
-                          <span className="font-mono font-bold text-base">{selectedFile.name}</span>
+                          <span className="font-mono font-bold text-base truncate max-w-full px-4 text-center block w-full">{selectedFile.name}</span>
                           <span className="text-xs text-[var(--foreground)] opacity-60 uppercase font-mono mt-1 hover:underline">Click to change</span>
                         </div>
                       ) : (
@@ -380,29 +420,81 @@ export default function App() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white/80 backdrop-blur-sm"
+                    className="absolute inset-0 z-10 bg-white overflow-y-auto"
                   >
-                    <div className="p-12 border border-[var(--border)] max-w-sm w-full flex flex-col items-center bg-white shadow-xl relative overflow-hidden">
-                      <Loader2 className="w-12 h-12 animate-spin text-[var(--primary)] mb-8" strokeWidth={1.5} />
-                      <p className="font-mono text-sm uppercase tracking-widest font-bold text-[var(--foreground)] mb-2">Diagnostic Scan</p>
-                      <AnimatePresence mode="wait">
-                        <motion.p 
-                          key={loadingPhase}
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -5 }}
-                          className="text-sm font-mono text-[var(--muted-foreground)] mb-8 h-5 font-medium"
-                        >
-                          {loadingMessages[loadingPhase]}
-                        </motion.p>
-                      </AnimatePresence>
-                      <div className="w-full h-1 bg-[var(--border)] overflow-hidden absolute bottom-0 left-0">
-                        <motion.div 
-                          className="h-full bg-[var(--primary)]"
-                          initial={{ width: "0%" }}
-                          animate={{ width: "100%" }}
-                          transition={{ duration: 2, ease: "linear", repeat: Infinity }}
-                        />
+                    <div className="p-8 md:p-10 max-w-2xl mx-auto">
+                      <div className="flex items-center gap-3 mb-8">
+                        <Loader2 className="w-5 h-5 animate-spin text-[var(--primary)]" />
+                        <p className="font-mono text-sm uppercase tracking-widest font-bold text-[var(--foreground)]">Pipeline Running</p>
+                      </div>
+                      <div className="space-y-1">
+                        {steps.map((step, i) => (
+                          <motion.div
+                            key={step.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            className="flex items-start gap-4 relative"
+                          >
+                            {/* Vertical connector line */}
+                            {i < steps.length - 1 && (
+                              <div className="absolute left-[11px] top-[28px] bottom-0 w-[2px] bg-[var(--border)]" />
+                            )}
+                            {/* Status icon */}
+                            <div className="mt-1 relative z-10 shrink-0">
+                              {step.status === "running" && (
+                                <Loader2 className="w-6 h-6 animate-spin text-[var(--primary)]" />
+                              )}
+                              {step.status === "completed" && (
+                                <CheckCircle2 className="w-6 h-6 text-[var(--success)]" />
+                              )}
+                              {step.status === "failed" && (
+                                <XCircle className="w-6 h-6 text-[var(--error)]" />
+                              )}
+                              {step.status === "pending" && (
+                                <Circle className="w-6 h-6 text-[var(--border)]" />
+                              )}
+                            </div>
+                            {/* Step content */}
+                            <div className={`flex-1 pb-6 ${step.status === "running" ? "" : ""}`}>
+                              <div className="flex items-center justify-between gap-4">
+                                <span className={`font-mono text-sm font-bold uppercase tracking-wider ${
+                                  step.status === "running" ? "text-[var(--primary)]" :
+                                  step.status === "completed" ? "text-[var(--foreground)]" :
+                                  step.status === "failed" ? "text-[var(--error)]" :
+                                  "text-[var(--muted-foreground)]"
+                                }`}>
+                                  {STEP_LABELS[step.id] || step.id}
+                                </span>
+                                {step.status === "completed" && step.duration_ms > 0 && (
+                                  <span className="font-mono text-xs text-[var(--muted-foreground)] flex items-center gap-1 shrink-0">
+                                    <Clock className="w-3 h-3" />
+                                    {step.duration_ms < 1000
+                                      ? `${step.duration_ms}ms`
+                                      : `${(step.duration_ms / 1000).toFixed(1)}s`}
+                                  </span>
+                                )}
+                              </div>
+                              <p className={`text-sm mt-1 leading-relaxed ${
+                                step.status === "running" ? "text-[var(--foreground)] font-medium" :
+                                step.status === "failed" ? "text-[var(--error)]" :
+                                "text-[var(--muted-foreground)]"
+                              }`}>
+                                {step.message}
+                              </p>
+                              {step.status === "running" && (
+                                <div className="w-full h-[2px] bg-[var(--border)] mt-3 overflow-hidden rounded-full">
+                                  <motion.div
+                                    className="h-full bg-[var(--primary)]"
+                                    initial={{ width: "0%" }}
+                                    animate={{ width: "100%" }}
+                                    transition={{ duration: 2, ease: "linear", repeat: Infinity }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))}
                       </div>
                     </div>
                   </motion.div>
@@ -461,13 +553,13 @@ export default function App() {
                           )}
                         </motion.div>
                         <div className="flex flex-col w-full border border-[var(--border)] bg-[var(--card)] shadow-sm">
-                          <div className="flex justify-between p-4 border-b border-[var(--border)] text-sm">
-                            <span className="font-mono font-bold uppercase tracking-wide text-[var(--muted-foreground)]">Threshold</span>
+                          <div className="flex justify-between p-4 border-b border-[var(--border)] text-sm gap-4">
+                            <span className="font-mono font-bold uppercase tracking-wide text-[var(--muted-foreground)] whitespace-nowrap">Threshold</span>
                             <span className="font-mono font-bold text-[var(--primary)] text-base">{threshold}</span>
                           </div>
-                          <div className="flex justify-between p-4 text-sm">
-                            <span className="font-mono font-bold uppercase tracking-wide text-[var(--muted-foreground)]">Target</span>
-                            <span className="font-mono font-bold truncate max-w-[180px]">{report.target || 'unknown'}</span>
+                          <div className="flex justify-between p-4 text-sm gap-4">
+                            <span className="font-mono font-bold uppercase tracking-wide text-[var(--muted-foreground)] whitespace-nowrap">Target</span>
+                            <span className="font-mono font-bold truncate max-w-[180px]" title={report.target || 'unknown'}>{report.target || 'unknown'}</span>
                           </div>
                         </div>
                       </div>
@@ -500,7 +592,7 @@ export default function App() {
                           <ShieldAlert className="w-6 h-6" />
                           Security Violations
                         </h3>
-                        <div className="flex-1 space-y-4 pr-2">
+                        <div className="flex-1 space-y-4 overflow-y-auto max-h-[450px] pr-4 custom-scrollbar">
                           {!report.details?.security || report.details.security.length === 0 ? (
                             <div className="border border-[var(--success)] bg-[var(--success-bg)] p-6 text-base font-mono text-[var(--success)] font-bold flex items-center gap-4 shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
                               <CheckCircle2 className="w-6 h-6" /> No vulnerabilities detected.
@@ -532,7 +624,7 @@ export default function App() {
                           <Code2 className="w-6 h-6" />
                           Code Smells & Lint
                         </h3>
-                        <div className="flex-1 space-y-4 overflow-y-auto max-h-[600px] pr-4 custom-scrollbar">
+                        <div className="flex-1 space-y-4 overflow-y-auto max-h-[450px] pr-4 custom-scrollbar">
                           {[...(report.details?.lint || []), ...(report.details?.static || [])].length === 0 ? (
                             <div className="border border-[var(--success)] bg-[var(--success-bg)] p-6 text-base font-mono text-[var(--success)] font-bold flex items-center gap-4 shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
                               <CheckCircle2 className="w-6 h-6" /> Code meets quality standards.

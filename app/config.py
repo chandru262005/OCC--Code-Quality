@@ -38,9 +38,7 @@ class Settings(BaseSettings):
     AI_OPENROUTER_MODEL: str = "google/gemma-3-4b-it:free"
     AI_OPENROUTER_FREE_MODELS: List[str] = [
         "google/gemma-3-4b-it:free",
-        "openai/gpt-oss-120b:free",
         "arcee-ai/trinity-large-preview:free",
-        "z-ai/glm-4.5-air:free",
         "stepfun/step-3.5-flash:free",
         "nvidia/nemotron-3-nano-30b-a3b:free",
     ]

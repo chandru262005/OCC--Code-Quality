@@ -127,7 +127,7 @@ class AIAnalyzer(BaseAnalyzer):
         files_payload: list[dict[str, Any]],
     ) -> tuple[list[Issue], float | None, str]:
         if provider_name == "openrouter":
-            return self._call_openrouter(url, api_key, files_payload)
+            return self._call_openrouter_with_fallback(url, api_key, files_payload)
 
         payload = {
             "provider": provider_name,
@@ -208,6 +208,7 @@ class AIAnalyzer(BaseAnalyzer):
         url: str,
         api_key: str,
         files_payload: list[dict[str, Any]],
+        model: str | None = None,
     ) -> tuple[list[Issue], float | None, str]:
         if not api_key:
             return (
@@ -224,7 +225,7 @@ class AIAnalyzer(BaseAnalyzer):
                 "missing api key",
             )
 
-        selected_model = self._select_openrouter_model()
+        selected_model = model if model else self._select_openrouter_model()
         prompt_payload = {
             "task": "code_quality_review",
             "instructions": (
@@ -350,7 +351,33 @@ class AIAnalyzer(BaseAnalyzer):
         if free_models:
             return free_models[0]
 
-        return "openai/gpt-oss-120b:free"
+        return "google/gemma-3-4b-it:free"
+
+    def _call_openrouter_with_fallback(
+        self,
+        url: str,
+        api_key: str,
+        files_payload: list[dict[str, Any]],
+    ) -> tuple[list[Issue], float | None, str]:
+        """Try each free model in order, skip on 404/429/400, return first success."""
+        free_models = [m.strip() for m in settings.AI_OPENROUTER_FREE_MODELS if m.strip()]
+        if self.selected_model and self.selected_model not in free_models:
+            free_models = [self.selected_model] + free_models
+        if not free_models:
+            free_models = ["google/gemma-3-4b-it:free"]
+
+        last_result: tuple[list[Issue], float | None, str] = ([], None, "no models tried")
+        for model in free_models:
+            issues, score, summary = self._call_openrouter(url, api_key, files_payload, model=model)
+            # If successful (no http error in issues), return immediately
+            if not any(
+                getattr(i, "rule", "") in {"openrouter_http_error", "openrouter_unavailable"}
+                for i in issues
+            ):
+                return issues, score, summary
+            last_result = (issues, score, summary)
+
+        return last_result
 
     def _extract_openrouter_model_json(self, response_data: Any) -> dict[str, Any] | None:
         if not isinstance(response_data, dict):

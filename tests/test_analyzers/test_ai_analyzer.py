@@ -72,6 +72,11 @@ def test_ai_analyzer_openrouter_uses_selected_model(monkeypatch):
         "app.config.settings.AI_OPENROUTER_MODEL",
         "z-ai/glm-4.5-air:free",
     )
+    # selected_model must also be in AI_OPENROUTER_FREE_MODELS to be used as primary
+    monkeypatch.setattr(
+        "app.config.settings.AI_OPENROUTER_FREE_MODELS",
+        ["stepfun/step-3.5-flash:free", "z-ai/glm-4.5-air:free"],
+    )
 
     captured_request = {"body": None}
 

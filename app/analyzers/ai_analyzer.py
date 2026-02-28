@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import Any
 from urllib import error, request
+from urllib.parse import urlsplit
 
 from app.analyzers.base import BaseAnalyzer
 from app.config import settings
@@ -359,7 +360,7 @@ class AIAnalyzer(BaseAnalyzer):
         api_key: str,
         files_payload: list[dict[str, Any]],
     ) -> tuple[list[Issue], float | None, str]:
-        """Try each free model in order, skip on 404/429/400, return first success."""
+        """Try configured free models first, then discovered free models, return first success."""
         free_models = [m.strip() for m in settings.AI_OPENROUTER_FREE_MODELS if m.strip()]
         if self.selected_model and self.selected_model not in free_models:
             free_models = [self.selected_model] + free_models
@@ -367,7 +368,9 @@ class AIAnalyzer(BaseAnalyzer):
             free_models = ["google/gemma-3-4b-it:free"]
 
         last_result: tuple[list[Issue], float | None, str] = ([], None, "no models tried")
+        tried_models: set[str] = set()
         for model in free_models:
+            tried_models.add(model)
             issues, score, summary = self._call_openrouter(url, api_key, files_payload, model=model)
             # If successful (no http error in issues), return immediately
             if not any(
@@ -377,7 +380,63 @@ class AIAnalyzer(BaseAnalyzer):
                 return issues, score, summary
             last_result = (issues, score, summary)
 
+        discovered_free_models = self._discover_openrouter_free_models(url)
+        for model in discovered_free_models:
+            if model in tried_models:
+                continue
+
+            issues, score, summary = self._call_openrouter(url, api_key, files_payload, model=model)
+            if not any(
+                getattr(i, "rule", "") in {"openrouter_http_error", "openrouter_unavailable"}
+                for i in issues
+            ):
+                return issues, score, summary
+            last_result = (issues, score, summary)
+
         return last_result
+
+    def _discover_openrouter_free_models(self, chat_completions_url: str) -> list[str]:
+        """Fetch free-model candidates from OpenRouter /models metadata.
+
+        Pricing metadata can change format, so model IDs ending with ':free'
+        are treated as free-tier candidates.
+        """
+        models_url = self._derive_openrouter_models_url(chat_completions_url)
+        if not models_url:
+            return []
+
+        req = request.Request(url=models_url, method="GET")
+        try:
+            with request.urlopen(req, timeout=settings.AI_REQUEST_TIMEOUT_SECONDS) as resp:
+                body = resp.read().decode("utf-8", errors="ignore")
+        except Exception:
+            return []
+
+        try:
+            payload = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            return []
+
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(data, list):
+            return []
+
+        discovered: list[str] = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+
+            model_id = str(item.get("id") or "").strip()
+            if model_id.endswith(":free") and model_id not in discovered:
+                discovered.append(model_id)
+
+        return discovered
+
+    def _derive_openrouter_models_url(self, chat_completions_url: str) -> str | None:
+        parsed = urlsplit(chat_completions_url)
+        if not parsed.scheme or not parsed.netloc:
+            return None
+        return f"{parsed.scheme}://{parsed.netloc}/api/v1/models"
 
     def _extract_openrouter_model_json(self, response_data: Any) -> dict[str, Any] | None:
         if not isinstance(response_data, dict):

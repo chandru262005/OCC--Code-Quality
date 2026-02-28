@@ -35,12 +35,10 @@ class Settings(BaseSettings):
     AI_GREPTILE_API_KEY: str = ""
     AI_OPENROUTER_API_URL: str = "https://openrouter.ai/api/v1/chat/completions"
     AI_OPENROUTER_API_KEY: str = ""
-    AI_OPENROUTER_MODEL: str = "google/gemma-3-4b-it:free"
+    AI_OPENROUTER_MODEL: str = "arcee-ai/trinity-large-preview:free"
     AI_OPENROUTER_FREE_MODELS: List[str] = [
-        "google/gemma-3-4b-it:free",
         "arcee-ai/trinity-large-preview:free",
         "stepfun/step-3.5-flash:free",
-        "nvidia/nemotron-3-nano-30b-a3b:free",
     ]
     AI_OPENROUTER_HTTP_REFERER: str = ""
     AI_OPENROUTER_APP_TITLE: str = "Code Quality Gate"

@@ -5,6 +5,7 @@ from pathlib import Path
 import logging
 
 from app.routes import api_router  # noqa: E402
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,8 @@ logger = logging.getLogger(__name__)
 async def lifespan(application: FastAPI):
     """Startup and shutdown events."""
     # Startup: create temp directories
-    Path("/tmp/cqg_uploads").mkdir(parents=True, exist_ok=True)
-    Path("/tmp/cqg_repos").mkdir(parents=True, exist_ok=True)
+    Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+    Path(settings.REPO_DIR).mkdir(parents=True, exist_ok=True)
     logger.info("Code Quality Gate API started")
     yield
     # Shutdown
@@ -22,7 +23,7 @@ async def lifespan(application: FastAPI):
 
 
 app = FastAPI(
-    title="Code Quality Gate",
+    title=settings.APP_NAME,
     description="API for analyzing code quality through lint, static analysis, and security scanning",
     version="1.0.0",
     lifespan=lifespan,

@@ -2,12 +2,7 @@ from pathlib import Path
 from fastapi import UploadFile, HTTPException
 import uuid
 import os
-
-UPLOAD_DIR = Path("/tmp/cqg_uploads")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-ALLOWED_EXTENSIONS = [".py"]
-MAX_FILE_SIZE_MB = 10
+from app.config import settings
 
 
 def validate_file(file: UploadFile) -> None:
@@ -16,26 +11,28 @@ def validate_file(file: UploadFile) -> None:
         raise HTTPException(status_code=400, detail="No filename provided")
 
     ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in ALLOWED_EXTENSIONS:
+    if ext not in settings.ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file extension '{ext}'. Allowed: {ALLOWED_EXTENSIONS}",
+            detail=f"Invalid file extension '{ext}'. Allowed: {settings.ALLOWED_EXTENSIONS}",
         )
 
     # Check file size (read content and check)
     content = file.file.read()
     file.file.seek(0)  # Reset file position
-    if len(content) > MAX_FILE_SIZE_MB * 1024 * 1024:
+    if len(content) > settings.MAX_FILE_SIZE_MB * 1024 * 1024:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Maximum size: {MAX_FILE_SIZE_MB}MB",
+            detail=f"File too large. Maximum size: {settings.MAX_FILE_SIZE_MB}MB",
         )
 
 
 def save_upload(file: UploadFile) -> Path:
     """Save uploaded file to temp directory with UUID prefix."""
     file_id = f"{uuid.uuid4()}_{file.filename}"
-    path = UPLOAD_DIR / file_id
+    upload_dir = Path(settings.UPLOAD_DIR)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    path = upload_dir / file_id
 
     with open(path, "wb") as f:
         f.write(file.file.read())

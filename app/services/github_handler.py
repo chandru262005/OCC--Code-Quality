@@ -3,9 +3,7 @@ from fastapi import HTTPException
 import shutil
 import re
 import os
-
-REPO_DIR = Path("/tmp/cqg_repos")
-REPO_DIR.mkdir(parents=True, exist_ok=True)
+from app.config import settings
 
 SKIP_DIRS = {
     ".git",
@@ -37,7 +35,8 @@ def clone_repo(url: str, branch: str = "main") -> Path:
     try:
         from git import Repo
 
-        repo_dir = REPO_DIR / f"repo_{os.urandom(8).hex()}"
+        repo_dir = Path(settings.REPO_DIR) / f"repo_{os.urandom(8).hex()}"
+        repo_dir.parent.mkdir(parents=True, exist_ok=True)
         Repo.clone_from(url, str(repo_dir), branch=branch, depth=1)
         return repo_dir
     except Exception as e:
@@ -46,10 +45,12 @@ def clone_repo(url: str, branch: str = "main") -> Path:
         )
 
 
-def list_python_files(repo_path: Path, extensions: list[str] = None) -> list[Path]:
+def list_python_files(
+    repo_path: Path, extensions: list[str] | None = None
+) -> list[Path]:
     """Walk directory and return all matching Python files, skipping hidden/venv dirs."""
     if extensions is None:
-        extensions = [".py"]
+        extensions = settings.ALLOWED_EXTENSIONS
 
     python_files = []
     for root, dirs, files in os.walk(repo_path):

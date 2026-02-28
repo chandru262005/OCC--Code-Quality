@@ -10,12 +10,13 @@ Event types sent over the stream:
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from app.models.request import GitHubAnalysisRequest
 from app.models.report import AnalyzerResult
 from app.services.file_handler import save_upload, cleanup_upload, validate_file
 from app.services.github_handler import clone_repo, list_python_files, cleanup_repo
-from app.analyzers import LintAnalyzer, StaticAnalyzer, SecurityAnalyzer
 from app.services.report_builder import build_report
+from app.services.orchestrator import AnalysisService
 import json
 import time
 import logging
@@ -55,13 +56,14 @@ async def analyze_file_stream(
         try:
             # Step 1 – validate
             t0 = time.time()
-            yield _step_event("validate", "running", f"Validating {file.filename}...")
+            filename = file.filename or "unknown"
+            yield _step_event("validate", "running", f"Validating {filename}...")
             await asyncio.sleep(0)  # flush
-            validate_file(file)
+            await run_in_threadpool(validate_file, file)
             yield _step_event(
                 "validate",
                 "completed",
-                f"File accepted: {file.filename}",
+                f"File accepted: {filename}",
                 int((time.time() - t0) * 1000),
             )
 
@@ -69,7 +71,7 @@ async def analyze_file_stream(
             t0 = time.time()
             yield _step_event("save", "running", "Saving upload to workspace...")
             await asyncio.sleep(0)
-            file_path = save_upload(file)
+            file_path = await run_in_threadpool(save_upload, file)
             yield _step_event(
                 "save", "completed", "Upload saved", int((time.time() - t0) * 1000)
             )
@@ -78,8 +80,12 @@ async def analyze_file_stream(
             t0 = time.time()
             yield _step_event("read", "running", "Reading source code...")
             await asyncio.sleep(0)
-            with open(file_path, "r") as f:
-                source_code = f.read()
+
+            def read_file(path):
+                with open(path, "r") as f:
+                    return f.read()
+
+            source_code = await run_in_threadpool(read_file, file_path)
             line_count = len(source_code.splitlines())
             yield _step_event(
                 "read",
@@ -89,21 +95,7 @@ async def analyze_file_stream(
             )
 
             # Steps 4-6 – analyzers
-            analyzers = [
-                ("lint", "Lint Analysis", "Running Flake8 linter...", LintAnalyzer()),
-                (
-                    "static",
-                    "Static Analysis",
-                    "Running complexity & AST checks...",
-                    StaticAnalyzer(),
-                ),
-                (
-                    "security",
-                    "Security Scan",
-                    "Scanning for vulnerability patterns...",
-                    SecurityAnalyzer(),
-                ),
-            ]
+            analyzers = AnalysisService.get_analyzers()
             analyzer_results: list[AnalyzerResult] = []
 
             for step_id, label, msg, analyzer in analyzers:
@@ -111,7 +103,9 @@ async def analyze_file_stream(
                 yield _step_event(step_id, "running", msg)
                 await asyncio.sleep(0)
                 try:
-                    result = analyzer.analyze(str(file_path), source_code)
+                    result = await run_in_threadpool(
+                        analyzer.analyze, str(file_path), source_code
+                    )
                     analyzer_results.append(result)
                     issue_count = len(result.issues)
                     yield _step_event(
@@ -143,7 +137,8 @@ async def analyze_file_stream(
                 "report", "running", "Aggregating scores & building report..."
             )
             await asyncio.sleep(0)
-            report = build_report(
+            report = await run_in_threadpool(
+                build_report,
                 analyzer_results=analyzer_results,
                 source="upload",
                 files_analyzed=1,
@@ -167,7 +162,7 @@ async def analyze_file_stream(
             yield _sse("error", {"message": str(exc)})
         finally:
             if file_path:
-                cleanup_upload(file_path)
+                await run_in_threadpool(cleanup_upload, file_path)
 
     return StreamingResponse(
         generate(),
@@ -201,7 +196,9 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
                 "clone", "running", f"Cloning repository (branch: {request.branch})..."
             )
             await asyncio.sleep(0)
-            repo_path = clone_repo(request.repo_url, request.branch)
+            repo_path = await run_in_threadpool(
+                clone_repo, request.repo_url, request.branch
+            )
             yield _step_event(
                 "clone",
                 "completed",
@@ -213,7 +210,9 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
             t0 = time.time()
             yield _step_event("discover", "running", "Discovering Python files...")
             await asyncio.sleep(0)
-            python_files = list_python_files(repo_path, request.file_extensions)
+            python_files = await run_in_threadpool(
+                list_python_files, repo_path, request.file_extensions
+            )
             if not python_files:
                 yield _step_event(
                     "discover",
@@ -238,13 +237,18 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
                 "read", "running", f"Reading {len(python_files)} files..."
             )
             await asyncio.sleep(0)
-            files_content = {}
-            for fp in python_files:
-                try:
-                    with open(fp, "r", encoding="utf-8", errors="ignore") as f:
-                        files_content[str(fp)] = f.read()
-                except Exception as exc:
-                    logger.warning(f"Could not read {fp}: {exc}")
+
+            def read_files(files):
+                files_content = {}
+                for fp in files:
+                    try:
+                        with open(fp, "r", encoding="utf-8", errors="ignore") as f:
+                            files_content[str(fp)] = f.read()
+                    except Exception as exc:
+                        logger.warning(f"Could not read {fp}: {exc}")
+                return files_content
+
+            files_content = await run_in_threadpool(read_files, python_files)
             total_lines = sum(c.count("\n") + 1 for c in files_content.values())
             yield _step_event(
                 "read",
@@ -254,26 +258,7 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
             )
 
             # Steps 5-7 – analyzers
-            analyzers = [
-                (
-                    "lint",
-                    "Lint Analysis",
-                    "Running Flake8 across all files...",
-                    LintAnalyzer(),
-                ),
-                (
-                    "static",
-                    "Static Analysis",
-                    "Computing complexity & code smells...",
-                    StaticAnalyzer(),
-                ),
-                (
-                    "security",
-                    "Security Scan",
-                    "Scanning all files for vulnerabilities...",
-                    SecurityAnalyzer(),
-                ),
-            ]
+            analyzers = AnalysisService.get_analyzers()
             analyzer_results: list[AnalyzerResult] = []
 
             for step_id, label, msg, analyzer in analyzers:
@@ -281,7 +266,9 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
                 yield _step_event(step_id, "running", msg)
                 await asyncio.sleep(0)
                 try:
-                    result = analyzer.analyze_multiple(files_content)
+                    result = await run_in_threadpool(
+                        analyzer.analyze_multiple, files_content
+                    )
                     analyzer_results.append(result)
                     issue_count = len(result.issues)
                     yield _step_event(
@@ -313,7 +300,8 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
                 "report", "running", "Aggregating scores & building report..."
             )
             await asyncio.sleep(0)
-            report = build_report(
+            report = await run_in_threadpool(
+                build_report,
                 analyzer_results=analyzer_results,
                 source="github",
                 files_analyzed=len(files_content),
@@ -337,7 +325,7 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
             yield _sse("error", {"message": str(exc)})
         finally:
             if repo_path:
-                cleanup_repo(repo_path)
+                await run_in_threadpool(cleanup_repo, repo_path)
 
     return StreamingResponse(
         generate(),

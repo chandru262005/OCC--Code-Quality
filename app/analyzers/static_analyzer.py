@@ -1,9 +1,12 @@
 from .base import BaseAnalyzer
 from app.models.report import AnalyzerResult, Issue
 import ast
+from pathlib import Path
 
 
 class StaticAnalyzer(BaseAnalyzer):
+    PYTHON_EXTENSIONS = {".py", ".pyi"}
+
     @property
     def name(self) -> str:
         return "static"
@@ -12,6 +15,10 @@ class StaticAnalyzer(BaseAnalyzer):
         if source_code is None:
             with open(file_path, "r") as f:
                 source_code = f.read()
+
+        extension = Path(file_path).suffix.lower()
+        if extension not in self.PYTHON_EXTENSIONS:
+            return self._analyze_generic(file_path, source_code)
 
         issues = []
 
@@ -249,3 +256,71 @@ class StaticAnalyzer(BaseAnalyzer):
             elif issue.severity == "info":
                 score -= 0.1
         return max(0.0, score)
+
+    def _analyze_generic(self, file_path: str, source_code: str) -> AnalyzerResult:
+        """Language-agnostic static checks for non-Python files."""
+        issues: list[Issue] = []
+        lines = source_code.splitlines()
+
+        if not source_code.strip():
+            issues.append(
+                Issue(
+                    severity="error",
+                    message="Empty source file",
+                    file=file_path,
+                    line=1,
+                    rule="empty_file",
+                )
+            )
+
+        if len(lines) > 600:
+            issues.append(
+                Issue(
+                    severity="warning",
+                    message=f"Very large file: {len(lines)} lines (threshold: 600)",
+                    file=file_path,
+                    line=1,
+                    rule="large_file_non_python",
+                )
+            )
+
+        max_brace_depth = 0
+        current_depth = 0
+        for idx, line in enumerate(lines, start=1):
+            for ch in line:
+                if ch == "{":
+                    current_depth += 1
+                    max_brace_depth = max(max_brace_depth, current_depth)
+                elif ch == "}":
+                    current_depth = max(0, current_depth - 1)
+
+            if len(line) > 240:
+                issues.append(
+                    Issue(
+                        severity="info",
+                        message="Very long line may hurt readability",
+                        file=file_path,
+                        line=idx,
+                        line_content=line,
+                        rule="very_long_line_non_python",
+                    )
+                )
+
+        if max_brace_depth > 6:
+            issues.append(
+                Issue(
+                    severity="warning",
+                    message=f"Deep block nesting detected (depth {max_brace_depth})",
+                    file=file_path,
+                    line=1,
+                    rule="deep_nesting_non_python",
+                )
+            )
+
+        score = self._calculate_score(issues)
+        return AnalyzerResult(
+            analyzer_name=self.name,
+            score=round(score, 2),
+            issues=issues,
+            summary=self._build_summary(issues, score),
+        )

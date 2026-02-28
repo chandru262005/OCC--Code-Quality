@@ -5,6 +5,8 @@ from fastapi import HTTPException
 
 from app.models.report import AnalyzerResult, QualityReport
 from app.analyzers import LintAnalyzer, StaticAnalyzer, SecurityAnalyzer
+from app.analyzers.ai_analyzer import AIAnalyzer
+from app.config import settings
 from app.services.report_builder import build_report
 
 logger = logging.getLogger(__name__)
@@ -12,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 class AnalysisService:
     @staticmethod
-    def get_analyzers():
-        return [
+    def get_analyzers(ai_model: str | None = None):
+        analyzers = [
             ("lint", "Lint Analysis", "Running Flake8 linter...", LintAnalyzer()),
             (
                 "static",
@@ -29,12 +31,24 @@ class AnalysisService:
             ),
         ]
 
+        if settings.AI_INTEGRATIONS_ENABLED:
+            analyzers.append(
+                (
+                    "ai_review",
+                    "AI Review",
+                    "Running external AI code review integrations...",
+                    AIAnalyzer(selected_model=ai_model),
+                )
+            )
+
+        return analyzers
+
     @staticmethod
     def run_analyzers_single_file(
-        file_path: str, source_code: str
+        file_path: str, source_code: str, ai_model: str | None = None
     ) -> List[AnalyzerResult]:
         """Run all analyzers on a single file synchronously."""
-        analyzers = [LintAnalyzer(), StaticAnalyzer(), SecurityAnalyzer()]
+        analyzers = [item[3] for item in AnalysisService.get_analyzers(ai_model=ai_model)]
         analyzer_results = []
         for analyzer in analyzers:
             try:
@@ -55,9 +69,10 @@ class AnalysisService:
     @staticmethod
     def run_analyzers_multiple_files(
         files_content: Dict[str, str],
+        ai_model: str | None = None,
     ) -> List[AnalyzerResult]:
         """Run all analyzers on multiple files synchronously."""
-        analyzers = [LintAnalyzer(), StaticAnalyzer(), SecurityAnalyzer()]
+        analyzers = [item[3] for item in AnalysisService.get_analyzers(ai_model=ai_model)]
         analyzer_results = []
         for analyzer in analyzers:
             try:
@@ -77,7 +92,10 @@ class AnalysisService:
 
     @staticmethod
     def process_file_analysis(
-        file_path: Path, filename: str, threshold: float
+        file_path: Path,
+        filename: str,
+        threshold: float,
+        ai_model: str | None = None,
     ) -> QualityReport:
         """Process a single file analysis end-to-end synchronously."""
         logger.info(f"Analyzing uploaded file: {filename}")
@@ -86,7 +104,7 @@ class AnalysisService:
                 source_code = f.read()
 
             analyzer_results = AnalysisService.run_analyzers_single_file(
-                str(file_path), source_code
+                str(file_path), source_code, ai_model
             )
 
             report = build_report(
@@ -109,13 +127,17 @@ class AnalysisService:
 
     @staticmethod
     def process_github_analysis(
-        repo_url: str, branch: str, python_files: List[Path], threshold: float
+        repo_url: str,
+        branch: str,
+        source_files: List[Path],
+        threshold: float,
+        ai_model: str | None = None,
     ) -> QualityReport:
         """Process a github analysis end-to-end synchronously, assuming files are listed."""
-        logger.info(f"Found {len(python_files)} Python files to analyze")
+        logger.info(f"Found {len(source_files)} files to analyze")
         try:
             files_content = {}
-            for file_path in python_files:
+            for file_path in source_files:
                 try:
                     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                         files_content[str(file_path)] = f.read()
@@ -123,7 +145,8 @@ class AnalysisService:
                     logger.warning(f"Could not read {file_path}: {e}")
 
             analyzer_results = AnalysisService.run_analyzers_multiple_files(
-                files_content
+                files_content,
+                ai_model,
             )
 
             report = build_report(

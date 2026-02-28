@@ -44,8 +44,8 @@ def test_upload_python_file(tmp_path):
     assert isinstance(data["overall_score"], (int, float))
 
 
-def test_upload_rejects_non_python_file(tmp_path):
-    """Test that non-Python files are rejected."""
+def test_upload_accepts_non_python_file(tmp_path):
+    """Test that non-Python files are accepted when all extensions are enabled."""
     test_file = tmp_path / "test.txt"
     test_file.write_text("This is not a Python file")
 
@@ -56,7 +56,10 @@ def test_upload_rejects_non_python_file(tmp_path):
             data={"threshold": "6.0"},
         )
 
-    assert response.status_code == 400
+    assert response.status_code == 200
+    data = response.json()
+    assert data["source"] == "upload"
+    assert data["files_analyzed"] == 1
 
 
 def test_upload_clean_code_high_score(tmp_path):

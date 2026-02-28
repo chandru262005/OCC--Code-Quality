@@ -10,11 +10,12 @@ logger = logging.getLogger(__name__)
 
 @router.post("/analyze/file", summary="Analyze an uploaded file")
 async def analyze_file(
-    file: UploadFile = File(..., description="Python file to analyze"),
+    file: UploadFile = File(..., description="Source code file to analyze"),
     threshold: float = Form(6.0, description="Quality threshold (0-10)"),
+    ai_model: str | None = Form(None, description="Optional AI model override"),
 ):
     """
-    Upload a Python file for quality analysis.
+    Upload a source code file for quality analysis.
 
     Returns a quality report with lint, static analysis, and security scan results.
     The report includes an overall score and pass/fail status based on the threshold.
@@ -32,6 +33,7 @@ async def analyze_file(
             file_path,
             file.filename or "unknown",
             threshold,
+            ai_model,
         )
         return report
 

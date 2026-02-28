@@ -4,15 +4,16 @@ A Python-based web application that accepts code file uploads (or GitHub repo UR
 
 ## Features
 
-- **File Upload Analysis** - Upload Python files for instant quality analysis
+- **File Upload Analysis** - Upload source code files for instant quality analysis
 - **GitHub Repo Analysis** - Analyze entire GitHub repositories by URL
 - **Three Analysis Engines:**
-  - Lint Analysis (Flake8-based) - code style and formatting
-  - Static Analysis (Radon + AST) - complexity, maintainability, code smells
-  - Security Scanning (Regex patterns) - hardcoded credentials, injection risks, dangerous functions
+  - Lint Analysis - Python via Flake8, plus language-agnostic lint checks for other file types
+  - Static Analysis - Python via Radon + AST, plus language-agnostic structure checks for other file types
+  - Security Scanning (Regex patterns) - hardcoded credentials, injection risks, dangerous functions across multiple languages
 - **Quality Gate** - Pass/fail based on configurable score threshold
 - **CI/CD Integration** - Jenkins pipeline, GitHub Actions, standalone script
 - **Docker Support** - Production-ready containerized deployment
+- **Optional AI Review Integrations** - Pluggable provider adapters (e.g., CodeRabbit / Greptile-style endpoints)
 
 ## Quick Start
 
@@ -46,7 +47,7 @@ make docker-run
 |--------|----------|-------------|
 | GET | `/health` | Health check |
 | GET | `/docs` | Swagger API documentation |
-| POST | `/api/v1/analyze/file` | Analyze an uploaded Python file |
+| POST | `/api/v1/analyze/file` | Analyze an uploaded source code file |
 | POST | `/api/v1/analyze/github` | Analyze a GitHub repository |
 | GET | `/api/v1/reports/{id}` | Retrieve a stored report |
 | GET | `/api/v1/reports` | List all stored reports |
@@ -123,6 +124,37 @@ All settings can be configured via environment variables. See `.env.example` for
 | `QUALITY_THRESHOLD` | `6.0` | Default quality gate threshold |
 | `MAX_FILE_SIZE_MB` | `10` | Maximum upload file size |
 | `PORT` | `8000` | Server port |
+
+### Optional AI Integrations
+
+The API supports optional AI review adapters through HTTP endpoints.
+
+- Enable with `AI_INTEGRATIONS_ENABLED=true`
+- Select adapters with `AI_PROVIDERS=["coderabbit","greptile"]`
+- Configure provider endpoints and keys:
+  - `AI_CODERABBIT_API_URL`, `AI_CODERABBIT_API_KEY`
+  - `AI_GREPTILE_API_URL`, `AI_GREPTILE_API_KEY`
+  - `AI_OPENROUTER_API_URL`, `AI_OPENROUTER_API_KEY`
+- Use scale guards for large repos:
+  - `AI_MAX_FILES` (default `30`)
+  - `AI_MAX_CHARS_PER_FILE` (default `20000`)
+
+#### OpenRouter free model selection
+
+- Default free model: `openai/gpt-oss-120b:free`
+- Configure selected model with `AI_OPENROUTER_MODEL`
+- Available free-model options can be listed/overridden via `AI_OPENROUTER_FREE_MODELS`
+
+Example:
+
+```env
+AI_INTEGRATIONS_ENABLED=true
+AI_PROVIDERS=["openrouter"]
+AI_OPENROUTER_API_KEY=<your_key>
+AI_OPENROUTER_MODEL=z-ai/glm-4.5-air:free
+```
+
+When disabled (default), core analysis behavior remains unchanged.
 
 ## Scoring
 

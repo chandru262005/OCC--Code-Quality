@@ -112,8 +112,8 @@ class TestFileUploadFlow:
         security_rules = [i["rule"] for i in security_result["issues"]]
         assert "hardcoded_password" in security_rules or "eval_usage" in security_rules
 
-    def test_upload_rejects_non_python(self, tmp_path):
-        """Non-Python files should be rejected with 400."""
+    def test_upload_accepts_non_python(self, tmp_path):
+        """Non-Python files should be accepted when all extensions are enabled."""
         test_file = tmp_path / "readme.txt"
         test_file.write_text("This is not Python code")
 
@@ -124,7 +124,7 @@ class TestFileUploadFlow:
                 data={"threshold": "6.0"},
             )
 
-        assert response.status_code == 400
+        assert response.status_code == 200
 
     def test_threshold_pass_fail_logic(self, tmp_path, sample_clean_code):
         """Same file should pass with low threshold and could fail with very high threshold."""

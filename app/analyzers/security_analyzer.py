@@ -44,6 +44,26 @@ class SecurityAnalyzer(BaseAnalyzer):
             "severity": "warning",
             "message": "Pickle can execute arbitrary code - use JSON for untrusted data",
         },
+        "c_unsafe_functions": {
+            "pattern": r"\b(strcpy|strcat|sprintf|vsprintf|gets)\s*\(",
+            "severity": "error",
+            "message": "Unsafe C/C++ string function detected",
+        },
+        "c_command_execution": {
+            "pattern": r"\b(system|popen)\s*\(",
+            "severity": "error",
+            "message": "Command execution detected - validate input and avoid shell injection",
+        },
+        "rust_unsafe_block": {
+            "pattern": r"\bunsafe\s*\{",
+            "severity": "warning",
+            "message": "Rust unsafe block detected - verify memory safety assumptions",
+        },
+        "hardcoded_private_key": {
+            "pattern": r"-----BEGIN\s+(RSA|OPENSSH|EC)\s+PRIVATE\s+KEY-----",
+            "severity": "error",
+            "message": "Potential hardcoded private key material detected",
+        },
         "http_url": {
             "pattern": r"http://(?!localhost|127\.0\.0\.1)",
             "severity": "info",

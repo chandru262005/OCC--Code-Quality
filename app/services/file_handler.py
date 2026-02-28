@@ -11,10 +11,13 @@ def validate_file(file: UploadFile) -> None:
         raise HTTPException(status_code=400, detail="No filename provided")
 
     ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in settings.ALLOWED_EXTENSIONS:
+    allowed_extensions = [item.lower() for item in settings.ALLOWED_EXTENSIONS]
+    allows_all_extensions = "*" in allowed_extensions
+
+    if not allows_all_extensions and ext not in allowed_extensions:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file extension '{ext}'. Allowed: {settings.ALLOWED_EXTENSIONS}",
+            detail=f"Invalid file extension '{ext}'. Allowed: {allowed_extensions}",
         )
 
     # Check file size (read content and check)

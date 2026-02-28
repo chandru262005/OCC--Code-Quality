@@ -14,7 +14,7 @@ async def analyze_github(request: GitHubAnalysisRequest):
     """
     Analyze a GitHub repository for code quality.
 
-    Clones the repository, analyzes all Python files, and returns an
+    Clones the repository, analyzes all matching source files, and returns an
     aggregated quality report.
     """
     logger.info(f"Analyzing GitHub repo: {request.repo_url} (branch: {request.branch})")
@@ -23,14 +23,15 @@ async def analyze_github(request: GitHubAnalysisRequest):
     repo_path = await run_in_threadpool(clone_repo, request.repo_url, request.branch)
 
     try:
-        # List all Python files
-        python_files = await run_in_threadpool(
+        # List all matching source files
+        source_files = await run_in_threadpool(
             list_python_files, repo_path, request.file_extensions
         )
 
-        if not python_files:
+        if not source_files:
             raise HTTPException(
-                status_code=404, detail="No Python files found in the repository"
+                status_code=404,
+                detail="No files found in the repository for the selected extensions",
             )
 
         # Run orchestrator
@@ -38,8 +39,9 @@ async def analyze_github(request: GitHubAnalysisRequest):
             AnalysisService.process_github_analysis,
             request.repo_url,
             request.branch,
-            python_files,
+            source_files,
             request.threshold,
+            request.ai_model,
         )
         return report
 

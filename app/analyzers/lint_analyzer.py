@@ -2,9 +2,12 @@ from .base import BaseAnalyzer
 from app.models.report import AnalyzerResult, Issue
 import subprocess
 import os
+from pathlib import Path
 
 
 class LintAnalyzer(BaseAnalyzer):
+    PYTHON_EXTENSIONS = {".py", ".pyi"}
+
     @property
     def name(self) -> str:
         return "lint"
@@ -13,6 +16,10 @@ class LintAnalyzer(BaseAnalyzer):
         if source_code is None:
             with open(file_path, "r") as f:
                 source_code = f.read()
+
+        extension = Path(file_path).suffix.lower()
+        if extension not in self.PYTHON_EXTENSIONS:
+            return self._analyze_generic(file_path, source_code)
 
         lines = source_code.splitlines()
 
@@ -60,6 +67,64 @@ class LintAnalyzer(BaseAnalyzer):
 
         # Score on 0-10 scale (start at 10, deduct 0.5 per issue)
         score = max(0.0, 10.0 - len(issues) * 0.5)
+
+        return AnalyzerResult(
+            analyzer_name=self.name,
+            score=round(score, 2),
+            issues=issues,
+            summary=self._build_summary(issues, score),
+        )
+
+    def _analyze_generic(self, file_path: str, source_code: str) -> AnalyzerResult:
+        """Language-agnostic lint checks for non-Python files."""
+        issues: list[Issue] = []
+        lines = source_code.splitlines()
+
+        for idx, line in enumerate(lines, start=1):
+            if len(line) > 120:
+                issues.append(
+                    Issue(
+                        severity="warning",
+                        message=f"Line too long ({len(line)} chars, threshold: 120)",
+                        file=file_path,
+                        line=idx,
+                        line_content=line,
+                        rule="generic_line_length",
+                    )
+                )
+
+            if line.rstrip() != line:
+                issues.append(
+                    Issue(
+                        severity="info",
+                        message="Trailing whitespace detected",
+                        file=file_path,
+                        line=idx,
+                        line_content=line,
+                        rule="generic_trailing_whitespace",
+                    )
+                )
+
+            if "\t" in line:
+                issues.append(
+                    Issue(
+                        severity="info",
+                        message="Tab character found; prefer consistent indentation",
+                        file=file_path,
+                        line=idx,
+                        line_content=line,
+                        rule="generic_tab_indentation",
+                    )
+                )
+
+        score = 10.0
+        for issue in issues:
+            if issue.severity == "warning":
+                score -= 0.5
+            elif issue.severity == "info":
+                score -= 0.1
+
+        score = max(0.0, score)
 
         return AnalyzerResult(
             analyzer_name=self.name,

@@ -208,33 +208,36 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
 
             # Step 3 – discover files
             t0 = time.time()
-            yield _step_event("discover", "running", "Discovering Python files...")
+            yield _step_event("discover", "running", "Discovering source files...")
             await asyncio.sleep(0)
-            python_files = await run_in_threadpool(
+            source_files = await run_in_threadpool(
                 list_python_files, repo_path, request.file_extensions
             )
-            if not python_files:
+            if not source_files:
                 yield _step_event(
                     "discover",
                     "failed",
-                    "No Python files found in repository",
+                    "No files found for selected extensions",
                     int((time.time() - t0) * 1000),
                 )
                 yield _sse(
-                    "error", {"message": "No Python files found in the repository"}
+                    "error",
+                    {
+                        "message": "No files found in the repository for the selected extensions"
+                    },
                 )
                 return
             yield _step_event(
                 "discover",
                 "completed",
-                f"Found {len(python_files)} Python file{'s' if len(python_files) != 1 else ''}",
+                f"Found {len(source_files)} file{'s' if len(source_files) != 1 else ''}",
                 int((time.time() - t0) * 1000),
             )
 
             # Step 4 – read all files
             t0 = time.time()
             yield _step_event(
-                "read", "running", f"Reading {len(python_files)} files..."
+                "read", "running", f"Reading {len(source_files)} files..."
             )
             await asyncio.sleep(0)
 
@@ -248,7 +251,7 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
                         logger.warning(f"Could not read {fp}: {exc}")
                 return files_content
 
-            files_content = await run_in_threadpool(read_files, python_files)
+            files_content = await run_in_threadpool(read_files, source_files)
             total_lines = sum(c.count("\n") + 1 for c in files_content.values())
             yield _step_event(
                 "read",

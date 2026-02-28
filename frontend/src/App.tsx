@@ -658,8 +658,49 @@ export default function App() {
         </main>
       </div>
 
-      <footer className="w-full text-center py-6 text-xs font-mono font-bold text-[var(--muted-foreground)] uppercase tracking-widest opacity-60">
-        CQG-8000 Engine • v1.2.0 • Strict Enforcement
+      <footer className="w-full border-t border-[var(--border)] bg-white">
+        <div className="max-w-[1600px] mx-auto px-8 py-12">
+          {/* Engine Info */}
+          <div className="text-center mb-10 pb-10 border-b border-[var(--border)]">
+            <p className="text-xs font-mono font-bold text-[var(--muted-foreground)] uppercase tracking-widest opacity-80">
+              CQG-8000 Engine • v1.2.0 • Strict Enforcement
+            </p>
+          </div>
+          
+          {/* Developers Section */}
+          <div className="flex flex-col items-center gap-4">
+            <h3 className="text-sm font-mono font-bold text-[var(--foreground)] uppercase tracking-widest">Developed By</h3>
+            <div className="flex flex-wrap justify-center gap-6 md:gap-8">
+              <a 
+                href="https://github.com/SuryaNarayanaa/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm font-mono text-[var(--muted-foreground)] hover:text-[var(--primary)] transition-colors"
+              >
+                <Github className="w-4 h-4" />
+                <span className="font-bold">SuryaNarayanaa</span>
+              </a>
+              <a 
+                href="https://github.com/chandru262005/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm font-mono text-[var(--muted-foreground)] hover:text-[var(--primary)] transition-colors"
+              >
+                <Github className="w-4 h-4" />
+                <span className="font-bold">chandru262005</span>
+              </a>
+              <a 
+                href="https://github.com/RohithDharshan" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm font-mono text-[var(--muted-foreground)] hover:text-[var(--primary)] transition-colors"
+              >
+                <Github className="w-4 h-4" />
+                <span className="font-bold">RohithDharshan</span>
+              </a>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   )

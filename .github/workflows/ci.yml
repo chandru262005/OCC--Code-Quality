@@ -43,7 +43,7 @@ jobs:
         run: docker build -t code-quality-gate .
 
       - name: Run tests in Docker
-        run: docker run --rm code-quality-gate pytest tests/ -v
+        run: docker run --rm code-quality-gate python -m pytest tests/ -v
 
   quality-gate:
     needs: docker

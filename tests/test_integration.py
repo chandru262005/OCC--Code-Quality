@@ -3,7 +3,6 @@ End-to-end integration tests for the Code Quality Gate API.
 Tests the full flow: upload -> analyze -> report.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 

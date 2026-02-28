@@ -4,11 +4,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import logging
 
+from app.routes import api_router  # noqa: E402
+
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(application: FastAPI):
     """Startup and shutdown events."""
     # Startup: create temp directories
     Path("/tmp/cqg_uploads").mkdir(parents=True, exist_ok=True)
@@ -35,6 +37,4 @@ app.add_middleware(
 )
 
 # Include all routes
-from app.routes import api_router
-
 app.include_router(api_router)

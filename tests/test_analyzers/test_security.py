@@ -1,5 +1,5 @@
-import pytest
 from app.analyzers.security_analyzer import SecurityAnalyzer
+
 
 def test_security_vulnerabilities(tmp_path):
     vuln_code = tmp_path / "vuln.py"
@@ -16,6 +16,7 @@ def test_security_vulnerabilities(tmp_path):
     assert "eval_usage" in rules
     assert "hardcoded_password" in rules
 
+
 def test_security_clean_code(tmp_path):
     clean_code = tmp_path / "clean.py"
     source = "def safe(): return True"
@@ -23,6 +24,6 @@ def test_security_clean_code(tmp_path):
 
     analyzer = SecurityAnalyzer()
     results = analyzer.analyze(str(clean_code), source)
-    
+
     assert results.score == 10.0
     assert len(results.issues) == 0

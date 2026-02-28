@@ -38,7 +38,6 @@ async def analyze_github(request: GitHubAnalysisRequest):
         for file_path in python_files:
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    rel_path = str(file_path.relative_to(repo_path))
                     files_content[str(file_path)] = f.read()
             except Exception as e:
                 logger.warning(f"Could not read {file_path}: {e}")

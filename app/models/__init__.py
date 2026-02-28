@@ -1,2 +1,2 @@
-from .report import Issue, AnalyzerResult, QualityReport
-from .request import GitHubAnalysisRequest
+from .report import Issue, AnalyzerResult, QualityReport  # noqa: F401
+from .request import GitHubAnalysisRequest  # noqa: F401

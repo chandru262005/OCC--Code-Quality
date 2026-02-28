@@ -1,4 +1,3 @@
-import pytest
 from app.analyzers.static_analyzer import StaticAnalyzer
 
 

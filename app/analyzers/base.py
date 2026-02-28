@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from app.models.report import AnalyzerResult, Issue
 
+
 class BaseAnalyzer(ABC):
     """Base class all analyzers must inherit from."""
 
@@ -32,7 +33,7 @@ class BaseAnalyzer(ABC):
             analyzer_name=self.name,
             score=round(avg_score, 2),
             issues=all_issues,
-            summary=self._build_summary(all_issues, avg_score)
+            summary=self._build_summary(all_issues, avg_score),
         )
 
     def _build_summary(self, issues: list[Issue], score: float) -> str:

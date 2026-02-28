@@ -12,7 +12,6 @@ class Issue(BaseModel):
     rule: Optional[str] = None
 
 
-
 class AnalyzerResult(BaseModel):
     analyzer_name: str
     score: float

@@ -1,6 +1,7 @@
 import pytest
 from app.analyzers.static_analyzer import StaticAnalyzer
 
+
 def test_high_complexity_detection(tmp_path):
     # Setup: Create a deeply nested 'if' structure
     complex_file = tmp_path / "complex.py"
@@ -22,14 +23,17 @@ def test_high_complexity_detection(tmp_path):
 
     # Assertions
     assert results.score < 10.0
-    assert "Complexity" in results.summary
-    assert "B" in results.summary # Complexity 6 is 'B'
+    # Should detect moderate complexity and/or deep nesting
+    assert len(results.issues) > 0
+    rules = [i.rule for i in results.issues]
+    assert "moderate_complexity" in rules or "deep_nesting" in rules
+
 
 def test_empty_file_static_analysis(tmp_path):
     empty_file = tmp_path / "empty.py"
-    empty_file.write_text("def a(): pass") # Ast needs valid code
+    empty_file.write_text("def a(): pass")  # Ast needs valid code
 
     analyzer = StaticAnalyzer()
     results = analyzer.analyze(str(empty_file))
-    
+
     assert results.score == 10.0

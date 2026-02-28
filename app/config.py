@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     ANALYZER_TIMEOUT_SECONDS: int = 30
 
     # Optional AI integrations
-    AI_INTEGRATIONS_ENABLED: bool = False
+    AI_INTEGRATIONS_ENABLED: bool = True
     AI_PROVIDERS: List[str] = ["openrouter"]
     AI_REQUEST_TIMEOUT_SECONDS: int = 20
     AI_MAX_FILES: int = 30

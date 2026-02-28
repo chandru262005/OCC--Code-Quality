@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion"
-import { CheckCircle2, XCircle, Code2, Loader2, ArrowRight, ShieldAlert, FileCode2, UploadCloud, File, Github, Circle, Clock } from "lucide-react"
+import { CheckCircle2, XCircle, Code2, Loader2, ArrowRight, ShieldAlert, FileCode2, UploadCloud, File, Github, Circle, Clock, Sparkles } from "lucide-react"
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
 
@@ -8,6 +8,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
 function transformReport(raw: any) {
   const getAnalyzer = (name: string) =>
     raw.results?.find((r: any) => r.analyzer_name === name)
+
+  const aiAnalyzer = getAnalyzer("ai_review")
 
   return {
     score: raw.overall_score,
@@ -17,12 +19,16 @@ function transformReport(raw: any) {
       lint_score: getAnalyzer("lint")?.score ?? 0,
       static_score: getAnalyzer("static")?.score ?? 0,
       security_score: getAnalyzer("security")?.score ?? 0,
+      ai_score: aiAnalyzer?.score ?? null,
     },
     details: {
       lint: getAnalyzer("lint")?.issues ?? [],
       static: getAnalyzer("static")?.issues ?? [],
       security: getAnalyzer("security")?.issues ?? [],
+      ai: aiAnalyzer?.issues ?? [],
     },
+    ai_summary: aiAnalyzer?.summary ?? null,
+    has_ai_review: Boolean(aiAnalyzer),
   }
 }
 
@@ -632,7 +638,7 @@ export default function App() {
                     </div>
 
                     {/* Sub-metrics */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 border-b border-[var(--border)] bg-white divide-y md:divide-y-0 md:divide-x divide-[var(--border)]">
+                    <div className="grid grid-cols-1 md:grid-cols-4 border-b border-[var(--border)] bg-white divide-y md:divide-y-0 md:divide-x divide-[var(--border)]">
                       <div className="p-8 md:p-10 flex flex-col items-center justify-center text-center">
                         <span className="text-xs font-mono font-bold uppercase tracking-widest text-[var(--muted-foreground)] mb-4">Linting / Style</span>
                         <span className="text-5xl font-bold text-[var(--foreground)]"><AnimatedNumber value={report.metrics?.lint_score || 0} /></span>
@@ -646,6 +652,16 @@ export default function App() {
                         <span className={`text-5xl font-bold ${(report.metrics?.security_score || 0) < 10 ? 'text-[var(--error)]' : 'text-[var(--success)]'}`}>
                           <AnimatedNumber value={report.metrics?.security_score || 0} />
                         </span>
+                      </div>
+                      <div className="p-8 md:p-10 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-mono font-bold uppercase tracking-widest text-[var(--muted-foreground)] mb-4">AI Review</span>
+                        {report.has_ai_review ? (
+                          <span className="text-5xl font-bold text-[var(--primary)]">
+                            <AnimatedNumber value={report.metrics?.ai_score || 0} />
+                          </span>
+                        ) : (
+                          <span className="text-3xl font-bold text-[var(--muted-foreground)] opacity-60">N/A</span>
+                        )}
                       </div>
                     </div>
 
@@ -716,6 +732,52 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Dedicated AI Review Panel */}
+                    {report.has_ai_review && (
+                      <div className="p-8 md:p-10 border-t border-[var(--border)] bg-white">
+                        <h3 className="text-xl font-bold flex items-center gap-3 mb-6 text-[var(--primary)]">
+                          <Sparkles className="w-6 h-6" />
+                          AI Review Findings
+                        </h3>
+
+                        {report.ai_summary && (
+                          <div className="mb-6 p-4 border border-[var(--border)] bg-[var(--background)]/40 font-mono text-sm">
+                            {report.ai_summary}
+                          </div>
+                        )}
+
+                        <div className="space-y-4">
+                          {!report.details?.ai || report.details.ai.length === 0 ? (
+                            <div className="border border-[var(--success)] bg-[var(--success-bg)] p-6 text-base font-mono text-[var(--success)] font-bold flex items-center gap-4">
+                              <CheckCircle2 className="w-6 h-6" /> No AI findings reported.
+                            </div>
+                          ) : (
+                            report.details.ai.map((issue: any, i: number) => (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 + (i * 0.05) }}
+                                key={i}
+                                className="bg-white border border-[var(--border)] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.03)] relative"
+                              >
+                                <div className="flex justify-between items-start mb-4">
+                                  <span className="font-mono text-xs font-bold text-[var(--primary)] uppercase px-3 py-1.5 bg-[var(--background)] border border-[var(--border)]">
+                                    {issue.file || "*"}{issue.line ? `:${issue.line}` : ""}
+                                  </span>
+                                  <span className="font-mono text-xs text-[var(--primary)] uppercase font-bold tracking-widest">
+                                    {issue.rule || issue.severity}
+                                  </span>
+                                </div>
+                                <p className="text-base font-medium mt-2 text-[var(--foreground)] leading-relaxed">
+                                  {issue.message || issue.description}
+                                </p>
+                              </motion.div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

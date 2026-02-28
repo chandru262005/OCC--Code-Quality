@@ -137,3 +137,4 @@ def test_ai_analyzer_openrouter_missing_key_skips_provider(monkeypatch):
     assert result.analyzer_name == "ai_review"
     assert result.score == 10.0
     assert result.issues == []
+    assert "missing api key" not in result.summary.lower()

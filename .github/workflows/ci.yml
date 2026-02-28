@@ -72,8 +72,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and start API
+      - name: Validate OpenRouter secret availability
         run: |
+          if [ -z "${AI_OPENROUTER_API_KEY}" ]; then
+            echo "::warning::AI_OPENROUTER_API_KEY is empty in this run."
+            echo "::warning::If you are using Environment secrets, bind this job to that environment."
+          else
+            echo "OpenRouter API key detected (length: ${#AI_OPENROUTER_API_KEY})"
+          fi
+
+      - name: Build and start API
+        env:
+          AI_INTEGRATIONS_ENABLED: ${{ env.AI_INTEGRATIONS_ENABLED }}
+          AI_PROVIDERS: ${{ env.AI_PROVIDERS }}
+          AI_OPENROUTER_API_KEY: ${{ env.AI_OPENROUTER_API_KEY }}
+          AI_OPENROUTER_MODEL: ${{ env.AI_OPENROUTER_MODEL }}
+          AI_OPENROUTER_HTTP_REFERER: ${{ env.AI_OPENROUTER_HTTP_REFERER }}
+          AI_OPENROUTER_APP_TITLE: ${{ env.AI_OPENROUTER_APP_TITLE }}
+        run: |
+          if [ -z "${AI_OPENROUTER_API_KEY}" ]; then
+            echo "AI integrations disabled for this run because API key is unavailable."
+            export AI_INTEGRATIONS_ENABLED=false
+          fi
           docker compose up -d api
           sleep 10
 

@@ -7,7 +7,10 @@ class Issue(BaseModel):
     message: str
     file: str
     line: Optional[int] = None
+    column: Optional[int] = None
+    line_content: Optional[str] = None
     rule: Optional[str] = None
+
 
 
 class AnalyzerResult(BaseModel):

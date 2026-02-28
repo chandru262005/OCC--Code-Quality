@@ -111,6 +111,21 @@ def test_upload_insecure_code_detects_issues(tmp_path):
     assert len(security_result["issues"]) > 0
 
 
+def test_upload_accepts_ai_model_form_field(tmp_path):
+    """Upload endpoint should accept optional ai_model form field."""
+    test_file = tmp_path / "clean.py"
+    test_file.write_text("def ok():\n    return True\n")
+
+    with open(test_file, "rb") as f:
+        response = client.post(
+            "/api/v1/analyze/file",
+            files={"file": ("clean.py", f, "text/x-python")},
+            data={"threshold": "6.0", "ai_model": "openai/gpt-oss-120b:free"},
+        )
+
+    assert response.status_code == 200
+
+
 def test_report_not_found():
     """Test that non-existent report returns 404."""
     response = client.get("/api/v1/reports/non-existent-id")

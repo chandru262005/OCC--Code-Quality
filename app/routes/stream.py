@@ -50,6 +50,7 @@ def _step_event(step_id: str, status: str, message: str, duration_ms: int = 0) -
 async def analyze_file_stream(
     file: UploadFile = File(...),
     threshold: float = Form(6.0),
+    ai_model: str | None = Form(None),
 ):
     async def generate():
         file_path = None
@@ -95,7 +96,7 @@ async def analyze_file_stream(
             )
 
             # Steps 4-6 – analyzers
-            analyzers = AnalysisService.get_analyzers()
+            analyzers = AnalysisService.get_analyzers(ai_model=ai_model)
             analyzer_results: list[AnalyzerResult] = []
 
             for step_id, label, msg, analyzer in analyzers:
@@ -261,7 +262,7 @@ async def analyze_github_stream(request: GitHubAnalysisRequest):
             )
 
             # Steps 5-7 – analyzers
-            analyzers = AnalysisService.get_analyzers()
+            analyzers = AnalysisService.get_analyzers(ai_model=request.ai_model)
             analyzer_results: list[AnalyzerResult] = []
 
             for step_id, label, msg, analyzer in analyzers:

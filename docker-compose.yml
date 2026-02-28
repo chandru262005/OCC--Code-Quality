@@ -10,6 +10,12 @@ services:
       - QUALITY_THRESHOLD=6.0
       - DEBUG=false
       - LOG_LEVEL=info
+      - AI_INTEGRATIONS_ENABLED=${AI_INTEGRATIONS_ENABLED:-false}
+      - AI_PROVIDERS=${AI_PROVIDERS:-["openrouter"]}
+      - AI_OPENROUTER_MODEL=${AI_OPENROUTER_MODEL:-openai/gpt-oss-120b:free}
+      - AI_OPENROUTER_API_KEY=${AI_OPENROUTER_API_KEY:-}
+      - AI_OPENROUTER_HTTP_REFERER=${AI_OPENROUTER_HTTP_REFERER:-}
+      - AI_OPENROUTER_APP_TITLE=${AI_OPENROUTER_APP_TITLE:-Code Quality Gate}
     volumes:
       - upload_data:/tmp/cqg_uploads
       - repo_data:/tmp/cqg_repos
@@ -29,6 +35,12 @@ services:
     environment:
       - DEBUG=true
       - LOG_LEVEL=debug
+      - AI_INTEGRATIONS_ENABLED=${AI_INTEGRATIONS_ENABLED:-false}
+      - AI_PROVIDERS=${AI_PROVIDERS:-["openrouter"]}
+      - AI_OPENROUTER_MODEL=${AI_OPENROUTER_MODEL:-openai/gpt-oss-120b:free}
+      - AI_OPENROUTER_API_KEY=${AI_OPENROUTER_API_KEY:-}
+      - AI_OPENROUTER_HTTP_REFERER=${AI_OPENROUTER_HTTP_REFERER:-}
+      - AI_OPENROUTER_APP_TITLE=${AI_OPENROUTER_APP_TITLE:-Code Quality Gate Dev}
     volumes:
       - .:/app
       - upload_data:/tmp/cqg_uploads

@@ -57,6 +57,7 @@ const STEP_LABELS: Record<string, string> = {
   lint: "Lint Analysis",
   static: "Static Analysis",
   security: "Security Scan",
+  ai_review: "AI Review",
   report: "Build Report",
 }
 
@@ -75,6 +76,30 @@ export default function App() {
 
   // Pipeline steps for live progress
   const [steps, setSteps] = useState<PipelineStep[]>([])
+  const [aiModels, setAiModels] = useState<string[]>([])
+  const [aiModel, setAiModel] = useState("")
+  const [aiEnabled, setAiEnabled] = useState(false)
+
+  useEffect(() => {
+    const fetchAiModels = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/ai/models`)
+        if (!res.ok) return
+
+        const data = await res.json()
+        const models = Array.isArray(data?.models) ? data.models : []
+        const defaultModel = typeof data?.default_model === "string" ? data.default_model : ""
+
+        setAiEnabled(Boolean(data?.enabled))
+        setAiModels(models)
+        setAiModel(defaultModel || models[0] || "")
+      } catch {
+        // optional endpoint; leave AI model selection empty on failure
+      }
+    }
+
+    fetchAiModels()
+  }, [])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -90,12 +115,7 @@ export default function App() {
     e.preventDefault()
     setIsDragging(false)
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0]
-      if (file.name.endsWith('.py')) {
-        setSelectedFile(file)
-      } else {
-        alert("Only .py files are supported.")
-      }
+      setSelectedFile(e.dataTransfer.files[0])
     }
   }
 
@@ -181,6 +201,9 @@ export default function App() {
     const formData = new FormData()
     formData.append("file", selectedFile)
     formData.append("threshold", threshold)
+    if (aiModel) {
+      formData.append("ai_model", aiModel)
+    }
 
     consumeStream(`${API_BASE_URL}/api/v1/analyze/file/stream`, {
       method: "POST",
@@ -195,7 +218,11 @@ export default function App() {
     consumeStream(`${API_BASE_URL}/api/v1/analyze/github/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repo_url: repoUrl, threshold: parseFloat(threshold) }),
+      body: JSON.stringify({
+        repo_url: repoUrl,
+        threshold: parseFloat(threshold),
+        ai_model: aiModel || null,
+      }),
     })
   }
 
@@ -270,7 +297,7 @@ export default function App() {
               {inputType === "file" ? (
                 <form onSubmit={handleAnalyzeFile} className="flex flex-col gap-8">
                   <div className="flex flex-col gap-4">
-                    <label className="text-sm font-mono text-[var(--foreground)] uppercase font-bold">Target File [.py]</label>
+                    <label className="text-sm font-mono text-[var(--foreground)] uppercase font-bold">Target File</label>
                     
                     {/* Interactive Dropzone */}
                     <div 
@@ -283,7 +310,6 @@ export default function App() {
                       <input 
                         type="file" 
                         ref={fileInputRef}
-                        accept=".py"
                         onChange={handleFileChange}
                         className="hidden"
                       />
@@ -298,11 +324,31 @@ export default function App() {
                           <UploadCloud className={`w-12 h-12 ${isDragging ? 'text-[var(--primary)]' : ''} transition-colors`} />
                           <div className="text-center">
                             <span className="font-bold text-[var(--foreground)]">Click to upload</span> or drag and drop<br/>
-                            <span className="font-mono text-xs uppercase mt-2 inline-block font-semibold">Python Scripts Only (.py)</span>
+                            <span className="font-mono text-xs uppercase mt-2 inline-block font-semibold">Any source file</span>
                           </div>
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <label className="text-sm font-mono text-[var(--foreground)] uppercase font-bold flex justify-between">
+                      <span>AI Model</span>
+                      <span className="text-[var(--muted-foreground)] text-xs">{aiEnabled ? "Enabled" : "Disabled"}</span>
+                    </label>
+                    <select
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      disabled={!aiModels.length}
+                      className="structural-input p-4 font-mono text-sm bg-white"
+                    >
+                      {!aiModels.length && <option value="">Default</option>}
+                      {aiModels.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="flex flex-col gap-4">
@@ -321,6 +367,26 @@ export default function App() {
                         className="w-full"
                       />
                     </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <label className="text-sm font-mono text-[var(--foreground)] uppercase font-bold flex justify-between">
+                      <span>AI Model</span>
+                      <span className="text-[var(--muted-foreground)] text-xs">{aiEnabled ? "Enabled" : "Disabled"}</span>
+                    </label>
+                    <select
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      disabled={!aiModels.length}
+                      className="structural-input p-4 font-mono text-sm bg-white"
+                    >
+                      {!aiModels.length && <option value="">Default</option>}
+                      {aiModels.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <button 

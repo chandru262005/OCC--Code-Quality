@@ -144,6 +144,8 @@ The API supports optional AI review adapters through HTTP endpoints.
 - Default free model: `openai/gpt-oss-120b:free`
 - Configure selected model with `AI_OPENROUTER_MODEL`
 - Available free-model options can be listed/overridden via `AI_OPENROUTER_FREE_MODELS`
+- Frontend users can choose the model per scan (sent as `ai_model`)
+- Backend API also accepts `ai_model` in both upload and GitHub analysis requests
 
 Example:
 

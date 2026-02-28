@@ -13,6 +13,12 @@ env:
   ECS_SERVICE: occ-api-service
   ECS_TASK_DEFINITION: occ-code-quality-api
   S3_BUCKET: occ-code-quality-frontend
+  AI_INTEGRATIONS_ENABLED: "true"
+  AI_PROVIDERS: '["openrouter"]'
+  AI_OPENROUTER_MODEL: openai/gpt-oss-120b:free
+  AI_OPENROUTER_API_KEY: ${{ secrets.AI_OPENROUTER_API_KEY }}
+  AI_OPENROUTER_HTTP_REFERER: ${{ secrets.AI_OPENROUTER_HTTP_REFERER }}
+  AI_OPENROUTER_APP_TITLE: OCC-Code-Quality-CI
 
 jobs:
   # ──────────────── CI: Test & Lint ────────────────

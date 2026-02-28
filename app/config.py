@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Optional AI integrations
     AI_INTEGRATIONS_ENABLED: bool = False
-    AI_PROVIDERS: List[str] = ["coderabbit", "greptile"]
+    AI_PROVIDERS: List[str] = ["openrouter"]
     AI_REQUEST_TIMEOUT_SECONDS: int = 20
     AI_MAX_FILES: int = 30
     AI_MAX_CHARS_PER_FILE: int = 20000

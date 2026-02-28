@@ -18,6 +18,9 @@ class AIAnalyzer(BaseAnalyzer):
     It is disabled by default and will only run when explicitly enabled.
     """
 
+    def __init__(self, selected_model: str | None = None):
+        self.selected_model = selected_model.strip() if selected_model else None
+
     @property
     def name(self) -> str:
         return "ai_review"
@@ -329,12 +332,19 @@ class AIAnalyzer(BaseAnalyzer):
         return issues, score, f"model {selected_model}: {summary}"
 
     def _select_openrouter_model(self) -> str:
-        preferred = settings.AI_OPENROUTER_MODEL.strip()
         free_models = [m.strip() for m in settings.AI_OPENROUTER_FREE_MODELS if m.strip()]
-        if preferred:
+
+        if self.selected_model:
+            if not free_models or self.selected_model in free_models:
+                return self.selected_model
+
+        preferred = settings.AI_OPENROUTER_MODEL.strip()
+        if preferred and (not free_models or preferred in free_models):
             return preferred
+
         if free_models:
             return free_models[0]
+
         return "openai/gpt-oss-120b:free"
 
     def _extract_openrouter_model_json(self, response_data: Any) -> dict[str, Any] | None:

@@ -114,12 +114,12 @@ def test_ai_analyzer_openrouter_uses_selected_model(monkeypatch):
 
     monkeypatch.setattr("app.analyzers.ai_analyzer.request.urlopen", _fake_urlopen)
 
-    analyzer = AIAnalyzer()
+    analyzer = AIAnalyzer(selected_model="stepfun/step-3.5-flash:free")
     result = analyzer.analyze("main.rs", "fn main() { unsafe { println!(\"x\"); } }")
 
     assert captured_request["body"] is not None
     sent_body = json.loads(captured_request["body"])
-    assert sent_body["model"] == "z-ai/glm-4.5-air:free"
+    assert sent_body["model"] == "stepfun/step-3.5-flash:free"
     assert result.score == 8.2
     assert len(result.issues) == 1
     assert result.issues[0].rule == "unsafe_block_review"

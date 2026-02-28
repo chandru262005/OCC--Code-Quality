@@ -2,7 +2,6 @@ from .base import BaseAnalyzer
 from app.models.report import AnalyzerResult, Issue
 import re
 
-
 class SecurityAnalyzer(BaseAnalyzer):
     @property
     def name(self) -> str:

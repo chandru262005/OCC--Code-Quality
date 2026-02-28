@@ -67,6 +67,14 @@ const STEP_LABELS: Record<string, string> = {
   report: "Build Report",
 }
 
+const DEFAULT_FREE_MODELS = [
+  "openai/gpt-oss-120b:free",
+  "arcee-ai/trinity-large-preview:free",
+  "z-ai/glm-4.5-air:free",
+  "stepfun/step-3.5-flash:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+]
+
 export default function App() {
   const [analyzing, setAnalyzing] = useState(false)
   const [report, setReport] = useState<any>(null)
@@ -82,9 +90,9 @@ export default function App() {
 
   // Pipeline steps for live progress
   const [steps, setSteps] = useState<PipelineStep[]>([])
-  const [aiModels, setAiModels] = useState<string[]>([])
-  const [aiModel, setAiModel] = useState("")
-  const [aiEnabled, setAiEnabled] = useState(false)
+  const [aiModels, setAiModels] = useState<string[]>(DEFAULT_FREE_MODELS)
+  const [aiModel, setAiModel] = useState(DEFAULT_FREE_MODELS[0])
+  const [aiEnabled, setAiEnabled] = useState(true)
 
   useEffect(() => {
     const fetchAiModels = async () => {
@@ -93,14 +101,16 @@ export default function App() {
         if (!res.ok) return
 
         const data = await res.json()
-        const models = Array.isArray(data?.models) ? data.models : []
+        const models = Array.isArray(data?.models) && data.models.length
+          ? data.models
+          : DEFAULT_FREE_MODELS
         const defaultModel = typeof data?.default_model === "string" ? data.default_model : ""
 
-        setAiEnabled(Boolean(data?.enabled))
+        setAiEnabled(typeof data?.enabled === "boolean" ? data.enabled : true)
         setAiModels(models)
         setAiModel(defaultModel || models[0] || "")
       } catch {
-        // optional endpoint; leave AI model selection empty on failure
+        // Keep client-side defaults when endpoint is unavailable.
       }
     }
 
@@ -375,26 +385,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-4">
-                    <label className="text-sm font-mono text-[var(--foreground)] uppercase font-bold flex justify-between">
-                      <span>AI Model</span>
-                      <span className="text-[var(--muted-foreground)] text-xs">{aiEnabled ? "Enabled" : "Disabled"}</span>
-                    </label>
-                    <select
-                      value={aiModel}
-                      onChange={(e) => setAiModel(e.target.value)}
-                      disabled={!aiModels.length}
-                      className="structural-input p-4 font-mono text-sm bg-white"
-                    >
-                      {!aiModels.length && <option value="">Default</option>}
-                      {aiModels.map((model) => (
-                        <option key={model} value={model}>
-                          {model}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
                   <button 
                     type="submit" 
                     disabled={analyzing || !selectedFile}
@@ -436,6 +426,26 @@ export default function App() {
                         className="w-full"
                       />
                     </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <label className="text-sm font-mono text-[var(--foreground)] uppercase font-bold flex justify-between">
+                      <span>AI Model</span>
+                      <span className="text-[var(--muted-foreground)] text-xs">{aiEnabled ? "Enabled" : "Disabled"}</span>
+                    </label>
+                    <select
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      disabled={!aiModels.length}
+                      className="structural-input p-4 font-mono text-sm bg-white"
+                    >
+                      {!aiModels.length && <option value="">Default</option>}
+                      {aiModels.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   
                   <button 

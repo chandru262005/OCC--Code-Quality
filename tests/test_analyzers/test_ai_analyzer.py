@@ -123,3 +123,17 @@ def test_ai_analyzer_openrouter_uses_selected_model(monkeypatch):
     assert result.score == 8.2
     assert len(result.issues) == 1
     assert result.issues[0].rule == "unsafe_block_review"
+
+
+def test_ai_analyzer_openrouter_missing_key_skips_provider(monkeypatch):
+    monkeypatch.setattr("app.config.settings.AI_INTEGRATIONS_ENABLED", True)
+    monkeypatch.setattr("app.config.settings.AI_PROVIDERS", ["openrouter"])
+    monkeypatch.setattr("app.config.settings.AI_OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions")
+    monkeypatch.setattr("app.config.settings.AI_OPENROUTER_API_KEY", "")
+
+    analyzer = AIAnalyzer()
+    result = analyzer.analyze("main.rs", "fn main() {}")
+
+    assert result.analyzer_name == "ai_review"
+    assert result.score == 10.0
+    assert result.issues == []

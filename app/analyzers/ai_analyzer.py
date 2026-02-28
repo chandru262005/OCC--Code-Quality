@@ -109,8 +109,14 @@ class AIAnalyzer(BaseAnalyzer):
         for provider in settings.AI_PROVIDERS:
             key = provider.strip().lower()
             conf = provider_map.get(key)
-            if conf and conf["url"]:
-                configured[key] = conf
+            if not conf or not conf["url"]:
+                continue
+
+            # OpenRouter requires API key for chat completions.
+            if key == "openrouter" and not conf["api_key"]:
+                continue
+
+            configured[key] = conf
         return configured
 
     def _call_provider(

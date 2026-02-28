@@ -8,7 +8,7 @@ Event types sent over the stream:
   error  – an unrecoverable error
 """
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from app.models.request import GitHubAnalysisRequest
 from app.models.report import AnalyzerResult

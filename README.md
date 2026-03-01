@@ -11,7 +11,7 @@ A Python-based web application that accepts code file uploads (or GitHub repo UR
   - Static Analysis - Python via Radon + AST, plus language-agnostic structure checks for other file types
   - Security Scanning (Regex patterns) - hardcoded credentials, injection risks, dangerous functions across multiple languages
 - **Quality Gate** - Pass/fail based on configurable score threshold
-- **CI/CD Integration** - Jenkins pipeline, GitHub Actions, standalone script
+- **CI/CD Integration** - GitHub Actions, standalone script
 - **Docker Support** - Production-ready containerized deployment
 - **Optional AI Review Integrations** - Pluggable provider adapters (e.g., CodeRabbit / Greptile-style endpoints)
 
@@ -69,29 +69,6 @@ curl -X POST http://localhost:8000/api/v1/analyze/github \
 ```
 
 ## Deployment
-
-### Docker Deployment
-
-```bash
-# Production
-docker-compose up -d api
-
-# Development (with hot reload)
-docker-compose up api-dev
-
-# Stop
-docker-compose down
-```
-
-### Jenkins Integration
-
-The project includes a `Jenkinsfile` with stages for:
-1. Checkout
-2. Docker Build
-3. Unit Tests
-4. Code Linting
-5. Quality Gate Check
-6. Image Push (on main branch)
 
 ### GitHub Actions
 
@@ -161,9 +138,9 @@ When disabled (default), core analysis behavior remains unchanged.
 ## Scoring
 
 The overall quality score (0-10) is a weighted average:
-- **Lint** (40%) - Code style via Flake8
+- **Lint** (25%) - Code style via Flake8
 - **Static Analysis** (35%) - Complexity via Radon + AST code smell detection
-- **Security** (25%) - Pattern-based vulnerability scanning
+- **Security** (40%) - Pattern-based vulnerability scanning
 
 ## Development
 
